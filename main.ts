@@ -1,26 +1,20 @@
 import {mnemonicToWalletKey} from "ton-crypto";
-import {fromNano, TonClient, WalletContractV4} from "ton";
+import {fromNano, TonClient, WalletContractV4, internal} from "ton";
 import {getHttpEndpoint} from "@orbs-network/ton-access";
 
 async function main() {
-    const mnemonic = "thrive employ amazing logicstock braveinject nest couch bluemotioncruisesilk womanswitch insestcomic rhyt";
-
-    // To'g'ri bo'laklash
+    // open wallet v4 (notice the correct wallet version here)
+    const mnemonic = ""; // your 24 secret words (replace ... with the rest of the words)
     const key = await mnemonicToWalletKey(mnemonic.split(" "));
-
-    // Wallet yaratish
     const wallet = WalletContractV4.create({publicKey: key.publicKey, workchain: 0});
 
-    // Testnet endpointini olish
+    // initialize ton rpc client on testnet
     const endpoint = await getHttpEndpoint({network: "testnet"});
     const client = new TonClient({endpoint});
 
-    // Walletni tekshirish
-    // console.log("Wallet address:", wallet.address.toString());
-
-
+    // make sure wallet is deployed
     if (!await client.isContractDeployed(wallet.address)) {
-        return console.log("Wallet is not deployed");
+        return console.log("wallet is not deployed");
     }
 
     console.log("wallet is deployed- ", wallet.address)
@@ -28,6 +22,34 @@ async function main() {
     const balance = await client.getBalance(wallet.address)
     console.log("balance: ", fromNano(balance))
 
+    // send ton 0.05 EQA4V9tF4lY2S_J-sEQR7aUj9IwW-Ou2vJQlCn--2DLOLR5e
+
+    const walletContract = client.open(wallet);
+    const seqno = await walletContract.getSeqno();
+    await walletContract.sendTransfer({
+        secretKey: key.secretKey,
+        seqno: seqno,
+        messages: [
+            internal({
+                to: "EQA4V9tF4lY2S_J-sEQR7aUj9IwW-Ou2vJQlCn--2DLOLR5e",
+                value: "0.05", // 0.05 TON
+                body: "Salom", // optional comment
+                bounce: false,
+            })
+        ]
+    });
+
+    // let currentSeqno = seqno;
+    // while (currentSeqno == seqno) {
+    //     console.log("waiting for transaction to confirm...");
+    //     await sleep(1500);
+    //     currentSeqno = await walletContract.getSeqno();
+    // }
+    // console.log("transaction confirmed!");
 }
 
 main()
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
